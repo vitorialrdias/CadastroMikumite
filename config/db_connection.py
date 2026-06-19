@@ -21,30 +21,27 @@ def get_connection():
 
 
 def query(sql, params=None):
-    """Executa INSERT/UPDATE/DELETE. Retorna True/False."""
-    conn = get_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            conn.commit()
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                conn.commit()
         return True
+
     except Exception as e:
-        conn.rollback()
         st.session_state["_db_error"] = str(e)
         return False
 
 
 def fetch_one(sql, params=None):
-    """Executa SELECT e retorna uma linha (tupla) ou None."""
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute(sql, params)
-        return cur.fetchone()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return cur.fetchone()
 
 
 def fetch_all(sql, params=None):
-    """Executa SELECT e retorna lista de tuplas."""
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute(sql, params)
-        return cur.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return cur.fetchall()
