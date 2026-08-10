@@ -5,7 +5,7 @@ import hashlib
 import base64
 import re
 import time
-from datetime import date
+from datetime import date, timedelta
 import pandas as pd
 from io import BytesIO
 from openpyxl.chart import BarChart, Reference
@@ -366,14 +366,47 @@ def tela_cadastro():
 # ----------------------------------------------------------------------
 # TELA DE LISTAGEM
 # ----------------------------------------------------------------------
+PERIODOS_RAPIDOS = ["Hoje", "Últimos 7 dias", "Este mês", "Últimos 3 meses", "Período personalizado"]
+
+
+def _intervalo_periodo_rapido(nome, hoje):
+    """Devolve (data_inicio, data_fim) para os atalhos de período, ou
+    None quando for "Período personalizado" (aí o usuário escolhe as
+    datas manualmente)."""
+    if nome == "Hoje":
+        return hoje, hoje
+    if nome == "Últimos 7 dias":
+        return hoje - timedelta(days=6), hoje
+    if nome == "Este mês":
+        return hoje.replace(day=1), hoje
+    if nome == "Últimos 3 meses":
+        return hoje - timedelta(days=90), hoje
+    return None
+
+
 def tela_listagem():
     st.subheader("Listagem de presenças")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        data_inicio = st.date_input("De:", value=date.today())
-    with col2:
-        data_fim = st.date_input("Até:", value=date.today())
+    hoje = date.today()
+
+    # No celular, escolher "De" e "Até" abrindo dois calendários é
+    # trabalhoso. Um período rápido resolve o caso mais comum em um
+    # único toque; "Período personalizado" mantém os calendários para
+    # quando for preciso um intervalo específico.
+    periodo = st.selectbox("Período", PERIODOS_RAPIDOS, index=0)
+    intervalo = _intervalo_periodo_rapido(periodo, hoje)
+
+    if intervalo:
+        data_inicio, data_fim = intervalo
+        st.caption(
+            f"De **{data_inicio.strftime('%d/%m/%Y')}** até **{data_fim.strftime('%d/%m/%Y')}**"
+        )
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            data_inicio = st.date_input("De:", value=hoje, format="DD/MM/YYYY")
+        with col2:
+            data_fim = st.date_input("Até:", value=hoje, format="DD/MM/YYYY")
 
     busca = st.text_input(
         "Buscar por nome, convidante ou núcleo",
@@ -396,6 +429,7 @@ def tela_listagem():
         clientes,
         columns=["Nome Mikumite", "Convidante", "Núcleo", "Data Cadastro"],
     )
+    df["Data Cadastro"] = df["Data Cadastro"].apply(lambda d: d.strftime("%d/%m/%Y"))
 
     if busca:
         filtro = df.apply(
@@ -416,7 +450,7 @@ def tela_listagem():
         st.download_button(
             "Exportar Excel",
             data=_gerar_excel(df_filtrado),
-            file_name=f"relatorio_mikumite_{date.today().strftime('%Y-%m-%d')}.xlsx",
+            file_name=f"relatorio_mikumite_{date.today().strftime('%d-%m-%Y')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             help="Inclui uma aba de resumo com gráfico de presenças por núcleo dos últimos 3 meses.",
@@ -435,11 +469,11 @@ def tela_admins():
         "SELECT user_admin, data_inclusao FROM dbo.cadastro_admins ORDER BY data_inclusao"
     )
     st.caption(f"{len(admins)} administrador(es) cadastrado(s)")
-    st.dataframe(
-        pd.DataFrame(admins, columns=["Usuário", "Cadastrado em"]),
-        use_container_width=True,
-        hide_index=True,
+    df_admins = pd.DataFrame(admins, columns=["Usuário", "Cadastrado em"])
+    df_admins["Cadastrado em"] = df_admins["Cadastrado em"].apply(
+        lambda d: d.strftime("%d/%m/%Y")
     )
+    st.dataframe(df_admins, use_container_width=True, hide_index=True)
 
     st.divider()
     st.markdown("##### Novo administrador")
