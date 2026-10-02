@@ -9,6 +9,7 @@ from datetime import date, timedelta
 import pandas as pd
 from io import BytesIO
 from openpyxl.chart import BarChart, Reference
+from openpyxl.styles import Font
 
 from config.db_connection import query, fetch_one, fetch_all
 
@@ -248,6 +249,14 @@ def _gerar_excel(df_periodo, df_datas, data_inicio, data_fim):
             grafico.add_data(dados, titles_from_data=True)
             grafico.set_categories(categorias)
             ws.add_chart(grafico, "D2")
+
+            # Linha de total logo abaixo dos núcleos; fica fora do
+            # intervalo do gráfico para não virar uma barra a mais.
+            fonte_total = Font(bold=True)
+            ws.cell(row=n + 2, column=1, value="Total").font = fonte_total
+            ws.cell(
+                row=n + 2, column=2, value=int(df_resumo["Presenças"].sum())
+            ).font = fonte_total
 
     return buffer.getvalue()
 
