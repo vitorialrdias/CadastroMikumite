@@ -211,14 +211,14 @@ def _limpar_cache_selects():
     carregar_nucleos.clear()
 
 
-def _gerar_excel(df_periodo, data_inicio, data_fim):
+def _gerar_excel(df_periodo, df_datas, data_inicio, data_fim):
     """Gera o Excel com a listagem filtrada + uma aba de resumo com
     gráfico de presenças por núcleo do mesmo período filtrado na tela
     (o gráfico fica só no Excel, não na tela)."""
-    # O resumo sai da própria listagem filtrada, para a contagem por
-    # núcleo bater sempre com a aba "Presenças".
+    # O resumo conta todas as presenças do intervalo de datas filtrado
+    # na listagem (df_datas), independente do texto digitado na busca.
     df_resumo = (
-        df_periodo.groupby("Núcleo")
+        df_datas.groupby("Núcleo")
         .size()
         .reset_index(name="Presenças")
         .sort_values("Núcleo")
@@ -447,10 +447,18 @@ def tela_listagem():
     st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
 
     if not df_filtrado.empty:
+        # O nome do arquivo leva a data do filtro; no padrão ("Hoje")
+        # continua saindo só com a data do dia.
+        if data_inicio == data_fim:
+            sufixo_arquivo = data_inicio.strftime("%d-%m-%Y")
+        else:
+            sufixo_arquivo = (
+                f"{data_inicio.strftime('%d-%m-%Y')}_a_{data_fim.strftime('%d-%m-%Y')}"
+            )
         st.download_button(
             "Exportar Excel",
-            data=_gerar_excel(df_filtrado, data_inicio, data_fim),
-            file_name=f"relatorio_mikumite_{date.today().strftime('%d-%m-%Y')}.xlsx",
+            data=_gerar_excel(df_filtrado, df, data_inicio, data_fim),
+            file_name=f"relatorio_mikumite_{sufixo_arquivo}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             help="Inclui uma aba de resumo com gráfico de presenças por núcleo do período filtrado.",
